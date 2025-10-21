@@ -1,0 +1,25 @@
+# FastAPI и сервер
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.19
+
+# База данных
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.14.0
+
+# Аутентификация
+pyjwt==2.10.1
+cryptography==44.0.0
+requests==2.32.3
+
+# AI и OpenRouter
+openai==1.57.4
+
+# Утилиты
+python-dotenv==1.0.1
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# CORS
+fastapi-cors==0.0.6
