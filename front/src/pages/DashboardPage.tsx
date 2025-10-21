@@ -15,7 +15,6 @@ import {
   AlertCircle,
   Plus,
   ArrowRight,
-  BarChart3,
   Settings,
   CreditCard,
   Activity,
