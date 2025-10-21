@@ -1,0 +1,29 @@
+# Systemd service file for PressReach Backend
+# Place this file in /etc/systemd/system/pressreach-backend.service
+
+[Unit]
+Description=PressReach Backend API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/pressreach/backend
+Environment="PATH=/var/www/pressreach/backend/venv/bin"
+EnvironmentFile=/var/www/pressreach/backend/.env
+ExecStart=/var/www/pressreach/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/var/log/pressreach/backend.log
+StandardError=append:/var/log/pressreach/backend-error.log
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
