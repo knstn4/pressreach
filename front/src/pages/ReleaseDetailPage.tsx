@@ -5,8 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, Clock, CheckCircle2, XCircle, Calendar } from 'lucide-react';
-
-const API_URL = 'http://localhost:8000';
+import { API_URL } from '@/config';
 
 interface MediaOutlet {
   id: number;

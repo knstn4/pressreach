@@ -10,8 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2, Save, Palette, Building2, Mail, Share2, FileText, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-
-const API_URL = 'http://localhost:8000';
+import { API_URL } from '@/config';
 
 interface Branding {
   id?: number;

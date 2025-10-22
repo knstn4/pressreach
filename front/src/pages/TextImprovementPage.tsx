@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Copy, ArrowLeft, Sparkles, CheckCircle2, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { API_URL } from "@/config";
 
 interface ImprovementResult {
   original_text: string;
@@ -56,7 +57,7 @@ export const TextImprovementPage = () => {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/improve-text", {
+      const response = await fetch(`${API_URL}/improve-text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

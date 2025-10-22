@@ -22,8 +22,7 @@ import {
   Palette,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-const API_URL = 'http://localhost:8000';
+import { API_URL } from '@/config';
 
 interface UserStats {
   totalReleases: number;

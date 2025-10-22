@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Copy, Printer, ArrowLeft, Sparkles, Send } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { API_URL } from "@/config";
 
 interface PressRelease {
   headline: string;
@@ -61,7 +62,7 @@ export const GeneratorPage = () => {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/generate-press-release", {
+      const response = await fetch(`${API_URL}/generate-press-release`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

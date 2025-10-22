@@ -10,8 +10,7 @@ import { Loader2, Send, CheckCircle2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-const API_URL = 'http://localhost:8000';
+import { API_URL } from '@/config';
 
 interface Category {
   id: number;
