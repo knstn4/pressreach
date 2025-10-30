@@ -990,13 +990,21 @@ async def delete_media_outlet(media_id: int, db: Session = Depends(get_db)):
 async def get_distributions(
     status: Optional[str] = None,
     limit: int = 50,
+    user_data: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Получить список дистрибуций
+    Получить список дистрибуций пользователя
     """
     try:
-        query = db.query(Distribution).order_by(Distribution.created_at.desc())
+        # Получаем пользователя
+        clerk_user_id = user_data.get("sub")
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+        query = db.query(Distribution).filter(Distribution.user_id == user.id).order_by(Distribution.created_at.desc())
 
         if status:
             query = query.filter(Distribution.status == status)
@@ -1013,7 +1021,8 @@ async def get_distributions(
             "failed_count": dist.failed_count,
             "total_price": dist.total_price,
             "created_at": dist.created_at.isoformat(),
-            "sent_at": dist.sent_at.isoformat() if dist.sent_at else None
+            "sent_at": dist.sent_at.isoformat() if dist.sent_at else None,
+            "scheduled_at": dist.scheduled_at.isoformat() if dist.scheduled_at else None
         } for dist in distributions]
     except Exception as e:
         logger.error(f"Ошибка получения списка дистрибуций: {str(e)}")
@@ -1477,7 +1486,7 @@ async def send_distribution(
                 delivery_log = DeliveryLog(
                     distribution_id=distribution_id,
                     media_outlet_id=media.id,
-                    contact_type="email",  # Указываем тип контакта
+                    contact_type="EMAIL",  # Указываем тип контакта
                     contact_value=media.email or "не указан",  # Значение контакта
                     status="failed",
                     error_message="Email адрес отсутствует"
@@ -1515,7 +1524,7 @@ async def send_distribution(
             delivery_log = DeliveryLog(
                 distribution_id=distribution_id,
                 media_outlet_id=media.id,
-                contact_type="email",  # Указываем тип контакта
+                contact_type="EMAIL",  # Указываем тип контакта
                 contact_value=media.email,  # Значение контакта
                 status=status,
                 error_message=error_message

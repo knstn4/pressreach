@@ -429,10 +429,15 @@ export default function DashboardPage() {
                     <CardTitle>Последние пресс-релизы</CardTitle>
                     <CardDescription>Ваши недавние публикации</CardDescription>
                   </div>
-                  <Button size="sm" onClick={() => navigate('/generator')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => navigate('/distribution/history')}>
+                      История
+                    </Button>
+                    <Button size="sm" onClick={() => navigate('/generator')}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Создать
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

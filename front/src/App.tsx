@@ -7,6 +7,7 @@ import { HomePage } from "./pages/HomePage";
 import { GeneratorPage } from "./pages/GeneratorPage";
 import { TextImprovementPage } from "./pages/TextImprovementPage";
 import DistributionPage from "./pages/DistributionPage";
+import DistributionHistoryPage from "./pages/DistributionHistoryPage";
 import MediaManagementPage from "./pages/MediaManagementPage";
 import DashboardPage from "./pages/DashboardPage";
 import ReleaseDetailPage from "./pages/ReleaseDetailPage";
@@ -54,6 +55,14 @@ function App() {
           element={
             <ProtectedRoute>
               <DistributionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/distribution/history"
+          element={
+            <ProtectedRoute>
+              <DistributionHistoryPage />
             </ProtectedRoute>
           }
         />
