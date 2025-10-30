@@ -5,9 +5,11 @@ import os
 import re
 import sys
 import uuid
+import shutil
+from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, Body
+from fastapi import FastAPI, HTTPException, Depends, Body, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -20,17 +22,19 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from open_router_client import OpenRouterClient
-    from prompts import build_prompt_for_press_release
-    from database import SessionLocal, MediaOutlet, Category, Distribution, DeliveryLog, MediaType, ContactType, User, PlanType, UserBranding
+    from prompts import build_prompt_for_press_release, build_prompt_for_media_selection
+    from database import SessionLocal, MediaOutlet, Category, Distribution, DeliveryLog, MediaType, ContactType, User, PlanType, UserBranding, DistributionFile
     from clerk_auth import get_current_user, get_current_user_optional
     from email_template import generate_email_html, generate_plain_text_email
+    from press_email_service import press_email_service
 except ImportError:
     # Альтернативный импорт для запуска из корневой папки
     from backend.open_router_client import OpenRouterClient
-    from backend.prompts import build_prompt_for_press_release
-    from backend.database import SessionLocal, MediaOutlet, Category, Distribution, DeliveryLog, MediaType, ContactType, User, PlanType, UserBranding
+    from backend.prompts import build_prompt_for_press_release, build_prompt_for_media_selection
+    from backend.database import SessionLocal, MediaOutlet, Category, Distribution, DeliveryLog, MediaType, ContactType, User, PlanType, UserBranding, DistributionFile
     from backend.clerk_auth import get_current_user, get_current_user_optional
     from backend.email_template import generate_email_html, generate_plain_text_email
+    from backend.press_email_service import press_email_service
 
 
 def extract_json(text: str) -> str:
@@ -68,6 +72,17 @@ app.add_middleware(
 # app.mount("/static", StaticFiles(directory="../build/static"), name="static")
 
 open_router_client = OpenRouterClient()
+
+# Настройки для загрузки файлов
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+ALLOWED_EXTENSIONS = {
+    'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
+    'jpg', 'jpeg', 'png', 'gif', 'webp',
+    'zip', 'rar', '7z',
+    'txt', 'csv'
+}
 
 
 # Dependency для получения DB сессии
@@ -308,6 +323,117 @@ async def improve_text(request: TextImprovementRequest):
         raise HTTPException(status_code=500, detail=f"Неожиданная ошибка: {str(e)}")
 
 
+class MediaSelectionRequest(BaseModel):
+    text: str
+    model: str = "deepseek"
+
+
+@app.post("/api/analyze-media-relevance")
+async def analyze_media_relevance(
+    request: MediaSelectionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Анализирует текст пресс-релиза и подбирает релевантные категории СМИ
+    """
+    logger.info("Получен запрос на анализ текста для подбора СМИ")
+
+    try:
+        # Получаем все категории из БД
+        categories = db.query(Category).all()
+        available_categories = [{
+            "id": cat.id,
+            "name": cat.name,
+            "description": cat.description
+        } for cat in categories]
+
+        if not available_categories:
+            return JSONResponse(content={
+                "success": False,
+                "error": "В базе данных нет доступных категорий СМИ"
+            })
+
+        # Импортируем функцию для создания промпта
+        try:
+            from prompts import build_prompt_for_media_selection
+        except ImportError:
+            from backend.prompts import build_prompt_for_media_selection
+
+        # Создаем промпт для анализа
+        user_prompt = build_prompt_for_media_selection(
+            text=request.text,
+            available_categories=available_categories
+        )
+
+        # Вызываем AI для анализа
+        logger.info("Отправляем запрос к AI для подбора релевантных СМИ")
+        ai_response = await open_router_client.improve_text(
+            user_prompt=user_prompt,
+            model=request.model
+        )
+
+        # Извлекаем JSON из ответа
+        cleaned_response = extract_json(ai_response)
+        logger.info(f"Получен ответ от AI: {cleaned_response[:200]}...")
+
+        try:
+            result_data = json.loads(cleaned_response)
+
+            # Получаем медиа для выбранных категорий
+            selected_category_names = [
+                cat["category_name"] for cat in result_data.get("selected_categories", [])
+            ]
+
+            # Находим ID категорий по именам
+            category_ids = []
+            for cat in categories:
+                if cat.name in selected_category_names:
+                    category_ids.append(cat.id)
+
+            # Получаем СМИ для этих категорий (many-to-many связь)
+            media_outlets = db.query(MediaOutlet).join(
+                MediaOutlet.categories
+            ).filter(
+                Category.id.in_(category_ids),
+                MediaOutlet.is_active == True
+            ).distinct().all()
+
+            # Формируем список СМИ без контактов
+            selected_media = [{
+                "id": media.id,
+                "name": media.name,
+                "categories": [{"id": cat.id, "name": cat.name} for cat in media.categories],
+                "is_premium": media.is_premium,
+                "audience_size": media.audience_size,
+                "monthly_reach": media.monthly_reach,
+                "rating": media.rating,
+                "website": media.website
+            } for media in media_outlets]
+
+            response_data = {
+                "success": True,
+                "analysis": result_data,
+                "recommended_media": selected_media,
+                "total_media_count": len(selected_media),
+                "selected_category_ids": category_ids,
+                "generated_at": datetime.now().isoformat()
+            }
+
+            return JSONResponse(content=response_data)
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Ошибка парсинга JSON результата: {str(e)}")
+            return JSONResponse(content={
+                "success": False,
+                "error": "Ошибка парсинга ответа ИИ",
+                "raw_response": cleaned_response
+            })
+
+    except Exception as e:
+        logger.error(f"Ошибка при анализе текста для подбора СМИ: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== USER ENDPOINTS ====================
 
 @app.post("/api/user/sync")
@@ -480,14 +606,16 @@ async def get_media(
             "media_type": media.media_type.value,
             "website": media.website,
             "description": media.description,
-            "email": media.email,
-            "telegram_username": media.telegram_username,
-            "phone": media.phone,
-            "whatsapp": media.whatsapp,
+            # Контакты скрыты - пользователи должны использовать нашу рассылку
+            # "email": media.email,
+            # "telegram_username": media.telegram_username,
+            # "phone": media.phone,
+            # "whatsapp": media.whatsapp,
             "audience_size": media.audience_size,
             "monthly_reach": media.monthly_reach,
-            "base_price": media.base_price,
-            "priority_multiplier": media.priority_multiplier,
+            # Цены тоже скрываем для конкурентоспособности
+            # "base_price": media.base_price,
+            # "priority_multiplier": media.priority_multiplier,
             "is_active": media.is_active,
             "is_premium": media.is_premium,
             "rating": media.rating,
@@ -606,17 +734,20 @@ async def create_distribution(
         # Рассчитываем общую стоимость
         total_price = sum(media.calculate_price() for media in media_outlets)
 
+        # Подготавливаем данные пресс-релиза (конвертируем в JSON string)
+        press_release_data_dict = {
+            **(request.press_release_data or {}),
+            'email_html': email_html,
+            'email_plain': email_plain,
+            'branding_used': branding_dict is not None
+        }
+
         # Создаём дистрибуцию
         distribution = Distribution(
             user_id=user.id,
             press_release_title=request.press_release_title,
             press_release_content=request.press_release_content,
-            press_release_data={
-                **(request.press_release_data or {}),
-                'email_html': email_html,
-                'email_plain': email_plain,
-                'branding_used': branding_dict is not None
-            },
+            press_release_data=json.dumps(press_release_data_dict),  # Конвертируем в JSON string
             company_name=request.company_name,
             contact_email=request.contact_email,
             contact_phone=request.contact_phone,
@@ -871,6 +1002,547 @@ async def get_distributions(
         } for dist in distributions]
     except Exception as e:
         logger.error(f"Ошибка получения списка дистрибуций: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== FILE UPLOAD ENDPOINTS ====================
+
+def validate_file(file: UploadFile) -> tuple[bool, str]:
+    """Проверяет файл на допустимость"""
+    # Проверка расширения
+    file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    if file_ext not in ALLOWED_EXTENSIONS:
+        return False, f"Недопустимый тип файла. Разрешены: {', '.join(ALLOWED_EXTENSIONS)}"
+
+    return True, ""
+
+
+@app.post("/api/distributions/{distribution_id}/upload-file")
+async def upload_distribution_file(
+    distribution_id: int,
+    file: UploadFile = File(...),
+    user_data: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Загрузить файл к рассылке (презентация, фото, документ и т.д.)
+    """
+    try:
+        # Проверяем, что рассылка существует и принадлежит пользователю
+        clerk_user_id = user_data.get("sub")
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        distribution = db.query(Distribution).filter(
+            Distribution.id == distribution_id,
+            Distribution.user_id == user.id
+        ).first()
+
+        if not distribution:
+            raise HTTPException(status_code=404, detail="Рассылка не найдена")
+
+        # Валидация файла
+        is_valid, error_message = validate_file(file)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_message)
+
+        # Читаем содержимое файла
+        contents = await file.read()
+        file_size = len(contents)
+
+        # Проверка размера
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Файл слишком большой. Максимальный размер: {MAX_FILE_SIZE // (1024*1024)} MB"
+            )
+
+        # Генерируем уникальное имя файла
+        file_ext = file.filename.split('.')[-1].lower()
+        unique_filename = f"{uuid.uuid4()}.{file_ext}"
+        file_path = UPLOAD_DIR / str(distribution_id) / unique_filename
+
+        # Создаём папку для рассылки
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Сохраняем файл
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        # Сохраняем информацию в БД
+        db_file = DistributionFile(
+            distribution_id=distribution_id,
+            file_name=file.filename,
+            file_path=str(file_path),
+            file_size=file_size,
+            file_type=file.content_type
+        )
+        db.add(db_file)
+        db.commit()
+        db.refresh(db_file)
+
+        logger.info(f"Файл {file.filename} загружен для рассылки {distribution_id}")
+
+        return {
+            "id": db_file.id,
+            "file_name": db_file.file_name,
+            "file_size": db_file.file_size,
+            "file_type": db_file.file_type,
+            "uploaded_at": db_file.uploaded_at.isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка загрузки файла: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/distributions/{distribution_id}/files")
+async def get_distribution_files(
+    distribution_id: int,
+    user_data: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Получить список файлов рассылки
+    """
+    try:
+        # Проверяем доступ
+        clerk_user_id = user_data.get("sub")
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        distribution = db.query(Distribution).filter(
+            Distribution.id == distribution_id,
+            Distribution.user_id == user.id
+        ).first()
+
+        if not distribution:
+            raise HTTPException(status_code=404, detail="Рассылка не найдена")
+
+        # Получаем файлы
+        files = db.query(DistributionFile).filter(
+            DistributionFile.distribution_id == distribution_id
+        ).all()
+
+        return [{
+            "id": f.id,
+            "file_name": f.file_name,
+            "file_size": f.file_size,
+            "file_type": f.file_type,
+            "uploaded_at": f.uploaded_at.isoformat()
+        } for f in files]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка получения файлов: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/distributions/{distribution_id}/files/{file_id}")
+async def delete_distribution_file(
+    distribution_id: int,
+    file_id: int,
+    user_data: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Удалить файл из рассылки
+    """
+    try:
+        # Проверяем доступ
+        clerk_user_id = user_data.get("sub")
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        distribution = db.query(Distribution).filter(
+            Distribution.id == distribution_id,
+            Distribution.user_id == user.id
+        ).first()
+
+        if not distribution:
+            raise HTTPException(status_code=404, detail="Рассылка не найдена")
+
+        # Получаем файл
+        db_file = db.query(DistributionFile).filter(
+            DistributionFile.id == file_id,
+            DistributionFile.distribution_id == distribution_id
+        ).first()
+
+        if not db_file:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+
+        # Удаляем физический файл
+        try:
+            file_path = Path(db_file.file_path)
+            if file_path.exists():
+                file_path.unlink()
+        except Exception as e:
+            logger.warning(f"Не удалось удалить физический файл: {e}")
+
+        # Удаляем запись из БД
+        db.delete(db_file)
+        db.commit()
+
+        logger.info(f"Файл {file_id} удалён из рассылки {distribution_id}")
+
+        return {"message": "Файл успешно удалён"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка удаления файла: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/distributions/{distribution_id}/files/{file_id}/download")
+async def download_distribution_file(
+    distribution_id: int,
+    file_id: int,
+    user_data: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Скачать файл рассылки
+    """
+    try:
+        # Проверяем доступ
+        clerk_user_id = user_data.get("sub")
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        distribution = db.query(Distribution).filter(
+            Distribution.id == distribution_id,
+            Distribution.user_id == user.id
+        ).first()
+
+        if not distribution:
+            raise HTTPException(status_code=404, detail="Рассылка не найдена")
+
+        # Получаем файл
+        db_file = db.query(DistributionFile).filter(
+            DistributionFile.id == file_id,
+            DistributionFile.distribution_id == distribution_id
+        ).first()
+
+        if not db_file:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+
+        file_path = Path(db_file.file_path)
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Физический файл не найден")
+
+        return FileResponse(
+            path=str(file_path),
+            filename=db_file.file_name,
+            media_type=db_file.file_type
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка скачивания файла: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/distributions/{distribution_id}/preview")
+async def preview_distribution_email(
+    distribution_id: int,
+    user_data: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Предпросмотр email письма с учетом брендинга пользователя
+    """
+    try:
+        # Проверяем доступ к рассылке
+        clerk_user_id = user_data.get("sub")
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+        distribution = db.query(Distribution).filter(
+            Distribution.id == distribution_id,
+            Distribution.user_id == user.id
+        ).first()
+        
+        if not distribution:
+            raise HTTPException(status_code=404, detail="Рассылка не найдена")
+        
+        # Используем поля из distribution напрямую
+        press_release_title = distribution.press_release_title
+        press_release_content = distribution.press_release_content
+        company_name = distribution.company_name
+        
+        if not press_release_title or not press_release_content:
+            raise HTTPException(status_code=400, detail="Пресс-релиз не найден")
+        
+        # Получаем брендинг пользователя
+        branding = db.query(UserBranding).filter(UserBranding.user_id == user.id).first()
+        
+        branding_dict = {
+            'primary_color': branding.primary_color if branding else '#3B82F6',
+            'secondary_color': branding.secondary_color if branding else '#8B5CF6',
+            'accent_color': branding.accent_color if branding else '#10B981',
+            'company_name': branding.company_name if branding and branding.company_name else company_name,
+            'contact_email': branding.contact_email if branding and branding.contact_email else distribution.contact_email,
+            'contact_phone': branding.contact_phone if branding and branding.contact_phone else distribution.contact_phone,
+            'contact_person': branding.contact_person if branding else '',
+            'website': branding.website if branding else '',
+            'default_closing': branding.default_closing if branding else 'С уважением',
+            'show_logo_in_header': branding.show_logo_in_header if branding else True,
+            'show_social_links': branding.show_social_links if branding else True,
+            'logo_url': branding.logo_url if branding else None,
+            'email_signature': branding.email_signature if branding else None,
+            'footer_text': branding.footer_text if branding else None,
+            'linkedin_url': branding.linkedin_url if branding else None,
+            'twitter_url': branding.twitter_url if branding else None,
+            'facebook_url': branding.facebook_url if branding else None,
+            'instagram_url': branding.instagram_url if branding else None,
+            'youtube_url': branding.youtube_url if branding else None,
+            'telegram_url': branding.telegram_url if branding else None,
+        }
+        
+        # Генерируем HTML preview
+        html_content = generate_email_html(
+            press_release_title=press_release_title,
+            press_release_content=press_release_content,
+            branding=branding_dict,
+            recipient_name=None  # В preview не показываем конкретное имя
+        )
+        
+        # Получаем список выбранных СМИ через relationship
+        media_outlets = distribution.media_outlets
+        
+        # Получаем прикрепленные файлы
+        files = db.query(DistributionFile).filter(
+            DistributionFile.distribution_id == distribution_id
+        ).all()
+        
+        return {
+            "html_preview": html_content,
+            "subject": press_release_title,
+            "from_name": branding_dict['company_name'],
+            "from_email": "info@pressreach.ru",
+            "media_count": len(media_outlets),
+            "media_outlets": [{"id": m.id, "name": m.name, "media_type": m.media_type} for m in media_outlets],
+            "attachments": [{"name": f.file_name, "size": f.file_size, "type": f.file_type} for f in files],
+            "branding": branding_dict
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка preview: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/distributions/{distribution_id}/send")
+async def send_distribution(
+    distribution_id: int,
+    user_data: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Отправить рассылку на все выбранные СМИ
+    """
+    try:
+        # Проверяем доступ к рассылке
+        clerk_user_id = user_data.get("sub")
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        distribution = db.query(Distribution).filter(
+            Distribution.id == distribution_id,
+            Distribution.user_id == user.id
+        ).first()
+
+        if not distribution:
+            raise HTTPException(status_code=404, detail="Рассылка не найдена")
+
+        # Проверяем статус
+        if distribution.status in ["completed", "sent"]:
+            raise HTTPException(status_code=400, detail="Рассылка уже была отправлена")
+
+        # Используем поля из distribution напрямую
+        press_release_title = distribution.press_release_title
+        press_release_content = distribution.press_release_content
+        company_name = distribution.company_name
+
+        if not press_release_title or not press_release_content:
+            raise HTTPException(status_code=400, detail="Пресс-релиз не найден")
+
+        # Получаем список СМИ для рассылки через relationship
+        media_outlets = distribution.media_outlets
+
+        if not media_outlets:
+            raise HTTPException(status_code=400, detail="Нет выбранных СМИ для рассылки")
+
+        # Получаем прикрепленные файлы
+        files = db.query(DistributionFile).filter(
+            DistributionFile.distribution_id == distribution_id
+        ).all()
+
+        attachment_paths = [f.file_path for f in files] if files else []
+        logger.info(f"📎 Найдено {len(files)} файлов для рассылки {distribution_id}")
+        for f in files:
+            logger.info(f"   - {f.file_name} ({f.file_size} bytes) at {f.file_path}")
+
+        # Получаем брендинг пользователя
+        branding = db.query(UserBranding).filter(UserBranding.user_id == user.id).first()
+        
+        branding_dict = {
+            'primary_color': branding.primary_color if branding else '#3B82F6',
+            'secondary_color': branding.secondary_color if branding else '#8B5CF6',
+            'accent_color': branding.accent_color if branding else '#10B981',
+            'company_name': branding.company_name if branding and branding.company_name else company_name,
+            'contact_email': branding.contact_email if branding and branding.contact_email else distribution.contact_email,
+            'contact_phone': branding.contact_phone if branding and branding.contact_phone else distribution.contact_phone,
+            'contact_person': branding.contact_person if branding else '',
+            'website': branding.website if branding else '',
+            'default_closing': branding.default_closing if branding else 'С уважением',
+            'show_logo_in_header': branding.show_logo_in_header if branding else True,
+            'show_social_links': branding.show_social_links if branding else True,
+            'logo_url': branding.logo_url if branding else None,
+            'email_signature': branding.email_signature if branding else None,
+            'footer_text': branding.footer_text if branding else None,
+            'linkedin_url': branding.linkedin_url if branding else None,
+            'twitter_url': branding.twitter_url if branding else None,
+            'facebook_url': branding.facebook_url if branding else None,
+            'instagram_url': branding.instagram_url if branding else None,
+            'youtube_url': branding.youtube_url if branding else None,
+            'telegram_url': branding.telegram_url if branding else None,
+        }
+
+        # Генерируем HTML и текстовую версию письма
+        html_content = generate_email_html(
+            press_release_title=press_release_title,
+            press_release_content=press_release_content,
+            branding=branding_dict,
+            recipient_name=None
+        )
+        text_content = generate_plain_text_email(
+            press_release_title=press_release_title,
+            press_release_content=press_release_content,
+            branding=branding_dict,
+            recipient_name=None
+        )
+
+        # Тема письма (заголовок пресс-релиза)
+        subject = press_release_title
+
+        # Название компании (для From поля)
+        company_name = branding_dict['company_name']
+
+        # Счетчики
+        sent_count = 0
+        failed_count = 0
+        delivery_logs = []
+
+        # Отправляем на каждое СМИ
+        for media in media_outlets:
+            if not media.email:
+                logger.warning(f"⚠️ У СМИ '{media.name}' нет email адреса")
+                failed_count += 1
+
+                # Создаем запись о доставке с ошибкой
+                delivery_log = DeliveryLog(
+                    distribution_id=distribution_id,
+                    media_outlet_id=media.id,
+                    contact_type="email",  # Указываем тип контакта
+                    contact_value=media.email or "не указан",  # Значение контакта
+                    status="failed",
+                    error_message="Email адрес отсутствует"
+                )
+                db.add(delivery_log)
+                delivery_logs.append({
+                    "media_name": media.name,
+                    "status": "failed",
+                    "error": "Email адрес отсутствует"
+                })
+                continue
+
+            # Отправляем email
+            success = await press_email_service.send_press_release(
+                to_email=media.email,
+                subject=subject,
+                html_content=html_content,
+                text_content=text_content,
+                attachments=attachment_paths,
+                company_name=company_name
+            )
+
+            if success:
+                sent_count += 1
+                status = "sent"
+                error_message = None
+                logger.info(f"✅ Отправлено на {media.name} ({media.email})")
+            else:
+                failed_count += 1
+                status = "failed"
+                error_message = "Ошибка SMTP"
+                logger.error(f"❌ Ошибка отправки на {media.name} ({media.email})")
+
+            # Создаем запись о доставке
+            delivery_log = DeliveryLog(
+                distribution_id=distribution_id,
+                media_outlet_id=media.id,
+                contact_type="email",  # Указываем тип контакта
+                contact_value=media.email,  # Значение контакта
+                status=status,
+                error_message=error_message
+            )
+            db.add(delivery_log)
+
+            delivery_logs.append({
+                "media_name": media.name,
+                "media_email": media.email,
+                "status": status,
+                "error": error_message
+            })
+
+        # Обновляем статистику рассылки
+        distribution.sent_count = sent_count
+        distribution.failed_count = failed_count
+        distribution.sent_at = datetime.utcnow()
+
+        # Обновляем статус рассылки
+        if failed_count == 0:
+            distribution.status = "completed"
+        elif sent_count > 0:
+            distribution.status = "partially_completed"
+        else:
+            distribution.status = "failed"
+
+        db.commit()
+
+        return {
+            "success": True,
+            "total_media": len(media_outlets),
+            "sent_count": sent_count,
+            "failed_count": failed_count,
+            "status": distribution.status,
+            "delivery_logs": delivery_logs
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ошибка отправки рассылки: {str(e)}")
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 

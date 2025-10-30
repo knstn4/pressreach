@@ -25,15 +25,10 @@ import {
 } from '@/components/ui/table';
 import {
   Search,
-  Plus,
-  Edit,
-  Trash2,
   Loader2,
   Star,
   Users,
   TrendingUp,
-  Mail,
-  Phone,
   Globe,
   Filter,
   X,
@@ -218,7 +213,9 @@ export default function MediaManagementPage() {
     }
   };
 
-  const handleAdd = () => {
+  // Скрыто для пользователей, будет использоваться позже
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleAdd = () => {
     setEditingMedia(null);
     setFormData({
       name: '',
@@ -241,6 +238,7 @@ export default function MediaManagementPage() {
     setIsDialogOpen(true);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleEdit = (media: MediaOutlet) => {
     setEditingMedia(media);
     setFormData({
@@ -328,6 +326,7 @@ export default function MediaManagementPage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDelete = async (id: number) => {
     if (!confirm('Вы уверены, что хотите удалить это СМИ?')) {
       return;
@@ -376,6 +375,7 @@ export default function MediaManagementPage() {
     return num.toString();
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -465,16 +465,17 @@ export default function MediaManagementPage() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Поиск по названию, сайту, email..."
+                    placeholder="Поиск по названию, сайту..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
                   />
                 </div>
-                <Button onClick={handleAdd} className="bg-green-600 hover:bg-green-700">
+                {/* Кнопка добавления скрыта - только для админов */}
+                {/* <Button onClick={handleAdd} className="bg-green-600 hover:bg-green-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Добавить СМИ
-                </Button>
+                </Button> */}
               </div>
 
               {/* Фильтры */}
@@ -552,12 +553,15 @@ export default function MediaManagementPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[300px]">Название</TableHead>
-                      <TableHead>Контакты</TableHead>
+                      {/* Контакты скрыты - приватная информация */}
+                      {/* <TableHead>Контакты</TableHead> */}
                       <TableHead>Аудитория</TableHead>
-                      <TableHead>Цена</TableHead>
+                      {/* Цена скрыта для конкурентоспособности */}
+                      {/* <TableHead>Цена</TableHead> */}
                       <TableHead>Рейтинг</TableHead>
                       <TableHead>Статус</TableHead>
-                      <TableHead className="text-right">Действия</TableHead>
+                      {/* Действия скрыты - редактирование только для админов */}
+                      {/* <TableHead className="text-right">Действия</TableHead> */}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -593,7 +597,8 @@ export default function MediaManagementPage() {
                           </div>
                         </TableCell>
 
-                        <TableCell>
+                        {/* Контакты скрыты */}
+                        {/* <TableCell>
                           <div className="space-y-1 text-sm">
                             {media.email && (
                               <div className="flex items-center gap-1 text-gray-600">
@@ -614,7 +619,7 @@ export default function MediaManagementPage() {
                               </div>
                             )}
                           </div>
-                        </TableCell>
+                        </TableCell> */}
 
                         <TableCell>
                           <div className="space-y-1 text-sm">
@@ -629,12 +634,13 @@ export default function MediaManagementPage() {
                           </div>
                         </TableCell>
 
-                        <TableCell>
+                        {/* Цена скрыта */}
+                        {/* <TableCell>
                           <div className="font-semibold">{formatPrice(media.base_price)}</div>
                           <div className="text-xs text-gray-500">
                             x{(media.priority_multiplier || 1.0).toFixed(1)}
                           </div>
-                        </TableCell>
+                        </TableCell> */}
 
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -651,7 +657,8 @@ export default function MediaManagementPage() {
                           )}
                         </TableCell>
 
-                        <TableCell className="text-right">
+                        {/* Действия скрыты - редактирование только для админов */}
+                        {/* <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button
                               variant="ghost"
@@ -669,7 +676,7 @@ export default function MediaManagementPage() {
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                        </TableCell>
+                        </TableCell> */}
                       </TableRow>
                     ))}
                   </TableBody>

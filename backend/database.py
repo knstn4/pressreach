@@ -249,6 +249,29 @@ class Distribution(Base):
         return f"<Distribution {self.id}: {self.press_release_title[:50]}>"
 
 
+class DistributionFile(Base):
+    """Модель файлов, прикреплённых к рассылке"""
+    __tablename__ = 'distribution_files'
+
+    id = Column(Integer, primary_key=True)
+    distribution_id = Column(Integer, ForeignKey('distributions.id'), nullable=False)
+
+    # Информация о файле
+    file_name = Column(String(255), nullable=False)  # Оригинальное имя файла
+    file_path = Column(String(500), nullable=False)  # Путь к файлу на сервере
+    file_size = Column(Integer, nullable=False)  # Размер в байтах
+    file_type = Column(String(100))  # MIME type (image/png, application/pdf и т.д.)
+
+    # Метаданные
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    # Связь
+    distribution = relationship('Distribution', backref='files')
+
+    def __repr__(self):
+        return f"<DistributionFile {self.id}: {self.file_name}>"
+
+
 class DeliveryLog(Base):
     """Лог доставки пресс-релиза в конкретное СМИ"""
     __tablename__ = 'delivery_logs'
@@ -289,7 +312,8 @@ DATABASE_URL = os.getenv(
 )
 
 # Создаем движок и сессию
-engine = create_engine(DATABASE_URL, echo=True)
+# echo=False - отключаем SQL логи (установите True для отладки)
+engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
