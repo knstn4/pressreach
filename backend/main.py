@@ -674,10 +674,25 @@ async def create_distribution(
     try:
         # Получаем пользователя
         clerk_user_id = user_data.get("sub")
+        logger.info(f"🔍 Поиск пользователя с clerk_user_id: {clerk_user_id}")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
 
         if not user:
-            raise HTTPException(status_code=404, detail="Пользователь не найден")
+            # Пытаемся создать пользователя автоматически, если его нет
+            logger.warning(f"⚠️  Пользователь с clerk_user_id {clerk_user_id} не найден, создаём...")
+            email = user_data.get("email", "")
+            user = User(
+                clerk_user_id=clerk_user_id,
+                email=email,
+                created_at=datetime.utcnow(),
+                subscription_status="free",
+                total_releases=0,
+                total_distributions=0
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            logger.info(f"✅ Пользователь создан: ID={user.id}, Email={email}")
 
         # Увеличиваем счётчик релизов
         user.total_releases = (user.total_releases or 0) + 1
