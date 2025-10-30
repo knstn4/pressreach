@@ -66,7 +66,7 @@ export default function DistributionPage() {
   const [totalPrice, setTotalPrice] = useState(0);
   const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdown[]>([]);
   const [analyzingText, setAnalyzingText] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [_analysisResult, setAnalysisResult] = useState<any>(null);
 
   // Данные пресс-релиза
   const [pressReleaseTitle, setPressReleaseTitle] = useState('');
@@ -85,7 +85,7 @@ export default function DistributionPage() {
   // Preview и отправка
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [_loadingPreview, setLoadingPreview] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<any>(null);
 
@@ -442,12 +442,12 @@ export default function DistributionPage() {
       }
 
       setDistributionCreated(true);
-      
+
       // Сразу открываем preview после создания
       setTimeout(() => {
         handleOpenPreview();
       }, 500);
-      
+
     } catch (error) {
       console.error('Ошибка создания рассылки:', error);
       alert('Ошибка создания рассылки');
@@ -503,7 +503,7 @@ export default function DistributionPage() {
       const data = await response.json();
       setSendResult(data);
       setShowPreview(false);
-      
+
     } catch (error) {
       console.error('Ошибка отправки:', error);
       alert('Ошибка отправки рассылки');
@@ -550,7 +550,7 @@ export default function DistributionPage() {
               {sendResult.failed_count === 0 ? '✅ Рассылка отправлена!' : '⚠️ Рассылка отправлена частично'}
             </CardTitle>
             <CardDescription>
-              {sendResult.failed_count === 0 
+              {sendResult.failed_count === 0
                 ? `Ваш пресс-релиз успешно отправлен в ${sendResult.sent_count} СМИ`
                 : `Отправлено в ${sendResult.sent_count} из ${sendResult.total_media} СМИ`
               }
@@ -1013,7 +1013,7 @@ export default function DistributionPage() {
                 <div className="bg-gray-100 px-4 py-2 border-b">
                   <p className="text-xs text-gray-600 font-medium">Предпросмотр HTML письма</p>
                 </div>
-                <div 
+                <div
                   className="p-4 bg-white"
                   dangerouslySetInnerHTML={{ __html: previewData.html_preview }}
                 />

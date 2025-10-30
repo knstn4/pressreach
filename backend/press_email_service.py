@@ -98,7 +98,7 @@ class PressReleaseEmailService:
             # Для портов 587/25 используем start_tls=True (STARTTLS)
             use_tls = self.smtp_port == 465
             start_tls = self.smtp_port in [587, 25]
-            
+
             await aiosmtplib.send(
                 message,
                 hostname=self.smtp_server,

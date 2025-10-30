@@ -239,7 +239,7 @@ export default function MediaManagementPage() {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleEdit = (media: MediaOutlet) => {
+  const _handleEdit = (media: MediaOutlet) => {
     setEditingMedia(media);
     setFormData({
       name: media.name,
@@ -327,7 +327,7 @@ export default function MediaManagementPage() {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDelete = async (id: number) => {
+  const _handleDelete = async (id: number) => {
     if (!confirm('Вы уверены, что хотите удалить это СМИ?')) {
       return;
     }
@@ -376,7 +376,7 @@ export default function MediaManagementPage() {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatPrice = (price: number) => {
+  const _formatPrice = (price: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
       currency: 'RUB',

@@ -13,7 +13,7 @@ async def test_smtp_config(server, port, use_tls, start_tls, username, password)
     print(f"\n{'='*60}")
     print(f"🧪 Тестирую: {config_name}")
     print(f"{'='*60}")
-    
+
     try:
         # Создаем тестовое сообщение
         message = MIMEMultipart()
@@ -21,9 +21,9 @@ async def test_smtp_config(server, port, use_tls, start_tls, username, password)
         message["To"] = "kostya.chuk@yandex.ru"
         message["Subject"] = "Test"
         message.attach(MIMEText("Test message", "plain"))
-        
+
         print(f"📡 Подключаюсь к {server}:{port}...")
-        
+
         # Пробуем подключиться
         async with aiosmtplib.SMTP(
             hostname=server,
@@ -32,22 +32,22 @@ async def test_smtp_config(server, port, use_tls, start_tls, username, password)
             timeout=10
         ) as smtp:
             print("✅ Подключение установлено")
-            
+
             if start_tls and not use_tls:
                 print("🔐 Включаю STARTTLS...")
                 await smtp.starttls()
                 print("✅ STARTTLS активирован")
-            
+
             print(f"🔑 Авторизация как {username}...")
             await smtp.login(username, password)
             print("✅ Авторизация успешна")
-            
+
             print("📧 Отправляю тестовое письмо...")
             await smtp.send_message(message)
             print("✅ Письмо отправлено!")
-            
+
             return True
-            
+
     except asyncio.TimeoutError:
         print(f"❌ Timeout - сервер не отвечает")
         return False
@@ -65,11 +65,11 @@ async def test_smtp_config(server, port, use_tls, start_tls, username, password)
 async def main():
     username = "info@pressreach.ru"
     password = "danmyj-winHoq-6nagby"
-    
+
     print("="*60)
     print("🧪 ТЕСТИРОВАНИЕ SMTP КОНФИГУРАЦИЙ REG.RU")
     print("="*60)
-    
+
     # Варианты конфигураций для REG.RU
     configs = [
         # Вариант 1: mail.hosting.reg.ru:465 с SSL
@@ -113,9 +113,9 @@ async def main():
             "start_tls": True
         },
     ]
-    
+
     results = []
-    
+
     for config in configs:
         result = await test_smtp_config(
             server=config["server"],
@@ -126,26 +126,26 @@ async def main():
             password=password
         )
         results.append((config["name"], result))
-        
+
         # Пауза между попытками
         await asyncio.sleep(2)
-    
+
     # Итоги
     print("\n" + "="*60)
     print("📊 ИТОГИ ТЕСТИРОВАНИЯ")
     print("="*60)
-    
+
     success_count = 0
     for name, success in results:
         status = "✅ РАБОТАЕТ" if success else "❌ НЕ РАБОТАЕТ"
         print(f"{status} - {name}")
         if success:
             success_count += 1
-    
+
     print("="*60)
     print(f"✅ Успешных конфигураций: {success_count}/{len(results)}")
     print("="*60)
-    
+
     if success_count > 0:
         print("\n💡 Рекомендация: Используйте одну из работающих конфигураций в .env")
     else:

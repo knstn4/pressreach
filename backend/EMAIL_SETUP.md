@@ -110,7 +110,7 @@ journalctl -u pressreach-backend -f
 
 ### 4. Проверить DeliveryLog в базе
 ```sql
-SELECT 
+SELECT
     d.id as distribution_id,
     d.status as distribution_status,
     d.sent_count,
@@ -134,7 +134,7 @@ WHERE d.id = <DISTRIBUTION_ID>;
 - **To:** email СМИ
 - **Reply-To:** info@pressreach.ru
 - **Subject:** Заголовок пресс-релиза
-- **Body:** 
+- **Body:**
   - HTML версия (красивое форматирование)
   - Plain text версия (fallback)
 - **Attachments:** Прикрепленные файлы

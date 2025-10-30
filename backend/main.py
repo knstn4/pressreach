@@ -1268,29 +1268,29 @@ async def preview_distribution_email(
         # Проверяем доступ к рассылке
         clerk_user_id = user_data.get("sub")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
-        
+
         if not user:
             raise HTTPException(status_code=404, detail="Пользователь не найден")
-        
+
         distribution = db.query(Distribution).filter(
             Distribution.id == distribution_id,
             Distribution.user_id == user.id
         ).first()
-        
+
         if not distribution:
             raise HTTPException(status_code=404, detail="Рассылка не найдена")
-        
+
         # Используем поля из distribution напрямую
         press_release_title = distribution.press_release_title
         press_release_content = distribution.press_release_content
         company_name = distribution.company_name
-        
+
         if not press_release_title or not press_release_content:
             raise HTTPException(status_code=400, detail="Пресс-релиз не найден")
-        
+
         # Получаем брендинг пользователя
         branding = db.query(UserBranding).filter(UserBranding.user_id == user.id).first()
-        
+
         branding_dict = {
             'primary_color': branding.primary_color if branding else '#3B82F6',
             'secondary_color': branding.secondary_color if branding else '#8B5CF6',
@@ -1313,7 +1313,7 @@ async def preview_distribution_email(
             'youtube_url': branding.youtube_url if branding else None,
             'telegram_url': branding.telegram_url if branding else None,
         }
-        
+
         # Генерируем HTML preview
         html_content = generate_email_html(
             press_release_title=press_release_title,
@@ -1321,15 +1321,15 @@ async def preview_distribution_email(
             branding=branding_dict,
             recipient_name=None  # В preview не показываем конкретное имя
         )
-        
+
         # Получаем список выбранных СМИ через relationship
         media_outlets = distribution.media_outlets
-        
+
         # Получаем прикрепленные файлы
         files = db.query(DistributionFile).filter(
             DistributionFile.distribution_id == distribution_id
         ).all()
-        
+
         return {
             "html_preview": html_content,
             "subject": press_release_title,
@@ -1340,7 +1340,7 @@ async def preview_distribution_email(
             "attachments": [{"name": f.file_name, "size": f.file_size, "type": f.file_type} for f in files],
             "branding": branding_dict
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1403,7 +1403,7 @@ async def send_distribution(
 
         # Получаем брендинг пользователя
         branding = db.query(UserBranding).filter(UserBranding.user_id == user.id).first()
-        
+
         branding_dict = {
             'primary_color': branding.primary_color if branding else '#3B82F6',
             'secondary_color': branding.secondary_color if branding else '#8B5CF6',
