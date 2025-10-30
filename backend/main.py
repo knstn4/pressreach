@@ -183,7 +183,7 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 
-@app.post("/generate-press-release")
+@app.post("/api/generate-press-release")
 async def generate_press_release(request: PressReleaseRequest):
     """
     Генерация пресс-релиза на основе входных данных
@@ -249,7 +249,7 @@ async def generate_press_release(request: PressReleaseRequest):
         raise HTTPException(status_code=500, detail=f"Неожиданная ошибка: {str(e)}")
 
 
-@app.post("/improve-text")
+@app.post("/api/improve-text")
 async def improve_text(request: TextImprovementRequest):
     """
     Улучшение текста: проверка грамматики или переписывание в определённом стиле

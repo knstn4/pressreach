@@ -59,14 +59,14 @@ ssh ubuntu@31.31.196.9
    ```bash
    nano setup.sh
    ```
-   
+
    Найдите и измените эти строки (в начале файла):
    ```bash
    POSTGRES_PASSWORD="ваш_надёжный_пароль_123"
    CLERK_SECRET_KEY="sk_test_ваш_clerk_secret_key"
    DEEPSEEK_API_KEY="sk-ваш_deepseek_api_key"
    ```
-   
+
    Сохраните: `Ctrl+X`, затем `Y`, затем `Enter`
 
 5. **Запустите установку:**

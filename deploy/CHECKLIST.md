@@ -35,7 +35,7 @@
 
 1. [ ] Подключился к серверу: `ssh root@31.31.196.9`
 2. [ ] Установил Git: `apt install git -y`
-3. [ ] Клонировал репо: 
+3. [ ] Клонировал репо:
    ```bash
    cd /root
    git clone https://github.com/knstn4/pressreach.git

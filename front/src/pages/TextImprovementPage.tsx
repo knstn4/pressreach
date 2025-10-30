@@ -57,7 +57,7 @@ export const TextImprovementPage = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/improve-text`, {
+      const response = await fetch(`${API_URL}/api/improve-text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

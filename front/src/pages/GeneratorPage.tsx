@@ -62,7 +62,7 @@ export const GeneratorPage = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/generate-press-release`, {
+      const response = await fetch(`${API_URL}/api/generate-press-release`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
