@@ -61,10 +61,7 @@ interface MediaOutlet {
   whatsapp: string | null;
   audience_size: number;
   monthly_reach: number;
-  base_price: number;
-  priority_multiplier: number;
   is_active: boolean;
-  is_premium: boolean;
   rating: number;
   categories: Category[];
   added_by_name?: string;
@@ -82,10 +79,7 @@ interface MediaFormData {
   whatsapp: string;
   audience_size: number;
   monthly_reach: number;
-  base_price: number;
-  priority_multiplier: number;
   is_active: boolean;
-  is_premium: boolean;
   rating: number;
   category_ids: number[];
 }
@@ -98,7 +92,6 @@ export default function MediaManagementPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [filterPremium, setFilterPremium] = useState<string>('all');
   const [filterActive, setFilterActive] = useState<string>('active');
 
   const [loading, setLoading] = useState(false);
@@ -117,10 +110,7 @@ export default function MediaManagementPage() {
     whatsapp: '',
     audience_size: 0,
     monthly_reach: 0,
-    base_price: 0,
-    priority_multiplier: 1.0,
     is_active: true,
-    is_premium: false,
     rating: 4.0,
     category_ids: [],
   });
@@ -173,13 +163,6 @@ export default function MediaManagementPage() {
       );
     }
 
-    // Фильтр premium
-    if (filterPremium === 'premium') {
-      filtered = filtered.filter((media) => media.is_premium === true);
-    } else if (filterPremium === 'standard') {
-      filtered = filtered.filter((media) => media.is_premium === false);
-    }
-
     // Фильтр активности
     if (filterActive === 'active') {
       filtered = filtered.filter((media) => media.is_active === true);
@@ -188,7 +171,7 @@ export default function MediaManagementPage() {
     }
 
     setFilteredMedia(filtered);
-  }, [mediaOutlets, searchQuery, selectedCategory, filterPremium, filterActive]);
+  }, [mediaOutlets, searchQuery, selectedCategory, filterActive]);
 
   const fetchCategories = async () => {
     try {
@@ -236,10 +219,7 @@ export default function MediaManagementPage() {
       whatsapp: '',
       audience_size: 0,
       monthly_reach: 0,
-      base_price: 0,
-      priority_multiplier: 1.0,
       is_active: true,
-      is_premium: false,
       rating: 4.0,
       category_ids: [],
     });
@@ -259,10 +239,7 @@ export default function MediaManagementPage() {
       whatsapp: media.whatsapp || '',
       audience_size: media.audience_size || 0,
       monthly_reach: media.monthly_reach || 0,
-      base_price: media.base_price || 0,
-      priority_multiplier: media.priority_multiplier || 1.0,
       is_active: media.is_active,
-      is_premium: media.is_premium,
       rating: media.rating || 4.0,
       category_ids: media.categories.map((cat) => cat.id),
     });
@@ -347,7 +324,6 @@ export default function MediaManagementPage() {
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
-    setFilterPremium('all');
     setFilterActive('active');
   };
 
@@ -370,7 +346,6 @@ export default function MediaManagementPage() {
   const activeFiltersCount =
     (searchQuery ? 1 : 0) +
     (selectedCategory !== 'all' ? 1 : 0) +
-    (filterPremium !== 'all' ? 1 : 0) +
     (filterActive !== 'active' ? 1 : 0);
 
   return (
@@ -385,7 +360,7 @@ export default function MediaManagementPage() {
         </div>
 
         {/* Статистика */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -394,20 +369,6 @@ export default function MediaManagementPage() {
                   <p className="text-2xl font-bold">{mediaOutlets.length}</p>
                 </div>
                 <Globe className="w-8 h-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Premium</p>
-                  <p className="text-2xl font-bold">
-                    {mediaOutlets.filter((m) => m.is_premium).length}
-                  </p>
-                </div>
-                <Star className="w-8 h-8 text-yellow-500" />
               </div>
             </CardContent>
           </Card>
@@ -461,7 +422,7 @@ export default function MediaManagementPage() {
               </div>
 
               {/* Фильтры */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                   <SelectTrigger>
                     <SelectValue placeholder="Все категории" />
@@ -473,17 +434,6 @@ export default function MediaManagementPage() {
                         {cat.name}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={filterPremium} onValueChange={setFilterPremium}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все типы</SelectItem>
-                    <SelectItem value="premium">Только Premium</SelectItem>
-                    <SelectItem value="standard">Только Standard</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -550,9 +500,6 @@ export default function MediaManagementPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-lg">{getMediaTypeIcon(media.media_type)}</span>
                               <span className="font-semibold">{media.name}</span>
-                              {media.is_premium && (
-                                <Badge className="bg-yellow-500">Premium</Badge>
-                              )}
                             </div>
                             {media.website && (
                               <a
@@ -770,7 +717,7 @@ export default function MediaManagementPage() {
 
             {/* Статистика */}
             <div className="border-t pt-4">
-              <h4 className="font-semibold mb-3">Статистика и цены</h4>
+              <h4 className="font-semibold mb-3">Статистика</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="audience_size">Размер аудитории</Label>
@@ -792,34 +739,6 @@ export default function MediaManagementPage() {
                     value={formData.monthly_reach}
                     onChange={(e) =>
                       setFormData({ ...formData, monthly_reach: parseInt(e.target.value) || 0 })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="base_price">Базовая цена (₽)</Label>
-                  <Input
-                    id="base_price"
-                    type="number"
-                    value={formData.base_price}
-                    onChange={(e) =>
-                      setFormData({ ...formData, base_price: parseFloat(e.target.value) || 0 })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="priority_multiplier">Множитель приоритета</Label>
-                  <Input
-                    id="priority_multiplier"
-                    type="number"
-                    step="0.1"
-                    value={formData.priority_multiplier}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        priority_multiplier: parseFloat(e.target.value) || 1.0,
-                      })
                     }
                   />
                 </div>
@@ -877,19 +796,6 @@ export default function MediaManagementPage() {
                   />
                   <Label htmlFor="is_active" className="cursor-pointer">
                     Активно (доступно для рассылки)
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="is_premium"
-                    checked={formData.is_premium}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, is_premium: checked as boolean })
-                    }
-                  />
-                  <Label htmlFor="is_premium" className="cursor-pointer">
-                    Premium издание (повышенный множитель цены)
                   </Label>
                 </div>
               </div>
