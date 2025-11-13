@@ -110,8 +110,8 @@ class PressReleaseRequest(BaseModel):
 class TextImprovementRequest(BaseModel):
     text: str
     mode: str = "grammar"  # "grammar" или "rewrite"
-    style: str = None  # Для mode="rewrite": "formal", "business", "casual", etc.
-    model: str = "deepseek"
+    style: Optional[str] = None  # Для mode="rewrite": "formal", "business", "casual", etc.
+    model: Optional[str] = "deepseek"
 
 
 class CreateDistributionRequest(BaseModel):
@@ -265,11 +265,14 @@ async def generate_press_release(request: PressReleaseRequest):
 
 
 @app.post("/api/improve-text")
-async def improve_text(request: TextImprovementRequest):
+async def improve_text(
+    request: TextImprovementRequest,
+    user_data: dict = Depends(get_current_user)
+):
     """
     Улучшение текста: проверка грамматики или переписывание в определённом стиле
     """
-    logger.info(f"Получен запрос на улучшение текста, режим: {request.mode}")
+    logger.info(f"Получен запрос на улучшение текста от пользователя {user_data.get('email')}, режим: {request.mode}")
 
     try:
         # Импортируем функцию для создания промпта

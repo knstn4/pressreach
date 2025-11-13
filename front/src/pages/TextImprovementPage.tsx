@@ -9,6 +9,7 @@ import { Loader2, Copy, ArrowLeft, Sparkles, CheckCircle2, RefreshCw } from "luc
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { API_URL } from "@/config";
+import { useAuth } from "@clerk/clerk-react";
 
 interface ImprovementResult {
   original_text: string;
@@ -26,6 +27,7 @@ interface ImprovementResult {
 }
 
 export const TextImprovementPage = () => {
+  const { getToken } = useAuth();
   const [text, setText] = useState("");
   const [mode, setMode] = useState<"grammar" | "rewrite">("grammar");
   const [style, setStyle] = useState("formal");
@@ -57,10 +59,12 @@ export const TextImprovementPage = () => {
     setError(null);
 
     try {
+      const token = await getToken();
       const response = await fetch(`${API_URL}/api/improve-text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           text: text,
