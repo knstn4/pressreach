@@ -589,20 +589,20 @@ async def debug_user_token(
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="No authorization header")
-    
+
     try:
         token = authorization.replace("Bearer ", "")
         # Декодируем токен без верификации для отладки
         import jwt
         decoded = jwt.decode(token, options={"verify_signature": False})
-        
+
         return {
             "all_fields": decoded,
             "extracted_name": (
-                decoded.get("firstName") or 
-                decoded.get("first_name") or 
-                decoded.get("name") or 
-                decoded.get("email", "").split("@")[0] or 
+                decoded.get("firstName") or
+                decoded.get("first_name") or
+                decoded.get("name") or
+                decoded.get("email", "").split("@")[0] or
                 "Неизвестный"
             )
         }
@@ -913,13 +913,13 @@ async def create_media_outlet(
         logger.info(f"JWT token fields: {list(user_data.keys())}")
         logger.info(f"Available user fields: firstName={user_data.get('firstName')}, first_name={user_data.get('first_name')}, name={user_data.get('name')}, email={user_data.get('email')}")
         logger.info(f"X-User-Name header: {x_user_name}")
-        
+
         # Получаем пользователя
         clerk_user_id = user_data.get("sub")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
 
         # Имя пользователя - приоритет заголовку X-User-Name
-        user_name = x_user_name or user.first_name if user and user.first_name else "Пользователь"
+        user_name = x_user_name or (user.first_name if user and user.first_name else "Пользователь")
 
         # Создаём медиа
         media = MediaOutlet(
