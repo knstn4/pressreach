@@ -902,6 +902,7 @@ async def get_distribution(
 async def create_media_outlet(
     request: CreateMediaOutletRequest = Body(...),
     user_data: dict = Depends(get_current_user),
+    x_user_name: str = Header(None, alias="X-User-Name"),
     db: Session = Depends(get_db)
 ):
     """
@@ -911,19 +912,14 @@ async def create_media_outlet(
         # Логируем все поля токена для отладки
         logger.info(f"JWT token fields: {list(user_data.keys())}")
         logger.info(f"Available user fields: firstName={user_data.get('firstName')}, first_name={user_data.get('first_name')}, name={user_data.get('name')}, email={user_data.get('email')}")
+        logger.info(f"X-User-Name header: {x_user_name}")
         
         # Получаем пользователя
         clerk_user_id = user_data.get("sub")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
 
-        # Имя пользователя из токена Clerk (приоритет: firstName, name, email)
-        user_name = (
-            user_data.get("firstName") or 
-            user_data.get("first_name") or 
-            user_data.get("name") or 
-            user_data.get("email", "").split("@")[0] or 
-            "Неизвестный"
-        )
+        # Имя пользователя - приоритет заголовку X-User-Name
+        user_name = x_user_name or user.first_name if user and user.first_name else "Пользователь"
 
         # Создаём медиа
         media = MediaOutlet(

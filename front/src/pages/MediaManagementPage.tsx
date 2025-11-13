@@ -41,7 +41,7 @@ import {
   User,
 } from 'lucide-react';
 import { API_URL } from '@/config';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 
 interface Category {
   id: number;
@@ -86,6 +86,7 @@ interface MediaFormData {
 
 export default function MediaManagementPage() {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const [mediaOutlets, setMediaOutlets] = useState<MediaOutlet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredMedia, setFilteredMedia] = useState<MediaOutlet[]>([]);
@@ -275,12 +276,16 @@ export default function MediaManagementPage() {
       console.log('URL:', url);
       console.log('Method:', method);
 
+      // Получаем имя пользователя
+      const userName = user?.firstName || user?.fullName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
+
       // Отправляем данные как JSON
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          'X-User-Name': userName, // Передаём имя в заголовке
         },
         body: JSON.stringify(cleanedData),
       });
