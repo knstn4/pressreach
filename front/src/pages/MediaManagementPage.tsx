@@ -278,6 +278,8 @@ export default function MediaManagementPage() {
 
       // Получаем имя пользователя
       const userName = user?.firstName || user?.fullName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
+      console.log('User object:', user);
+      console.log('User name to send:', userName);
 
       // Отправляем данные как JSON
       const response = await fetch(url, {
