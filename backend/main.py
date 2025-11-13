@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, Body, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, Body, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -580,20 +580,34 @@ async def get_categories(db: Session = Depends(get_db)):
 
 
 @app.get("/api/debug/user-token")
-async def debug_user_token(user_data: dict = Depends(get_current_user)):
+async def debug_user_token(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+):
     """
     Временный endpoint для отладки - показывает все поля JWT токена
     """
-    return {
-        "all_fields": user_data,
-        "extracted_name": (
-            user_data.get("firstName") or 
-            user_data.get("first_name") or 
-            user_data.get("name") or 
-            user_data.get("email", "").split("@")[0] or 
-            "Неизвестный"
-        )
-    }
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No authorization header")
+    
+    try:
+        token = authorization.replace("Bearer ", "")
+        # Декодируем токен без верификации для отладки
+        import jwt
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        
+        return {
+            "all_fields": decoded,
+            "extracted_name": (
+                decoded.get("firstName") or 
+                decoded.get("first_name") or 
+                decoded.get("name") or 
+                decoded.get("email", "").split("@")[0] or 
+                "Неизвестный"
+            )
+        }
+    except Exception as e:
+        return {"error": str(e), "token_preview": token[:50] if token else None}
 
 
 @app.get("/api/media")
