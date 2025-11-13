@@ -579,6 +579,23 @@ async def get_categories(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/debug/user-token")
+async def debug_user_token(user_data: dict = Depends(get_current_user)):
+    """
+    Временный endpoint для отладки - показывает все поля JWT токена
+    """
+    return {
+        "all_fields": user_data,
+        "extracted_name": (
+            user_data.get("firstName") or 
+            user_data.get("first_name") or 
+            user_data.get("name") or 
+            user_data.get("email", "").split("@")[0] or 
+            "Неизвестный"
+        )
+    }
+
+
 @app.get("/api/media")
 async def get_media(
     category_id: Optional[int] = None,
