@@ -272,14 +272,8 @@ export default function MediaManagementPage() {
         whatsapp: formData.whatsapp || null,
       };
 
-      console.log('Отправляем данные:', cleanedData);
-      console.log('URL:', url);
-      console.log('Method:', method);
-
       // Получаем имя пользователя
       const userName = user?.firstName || user?.fullName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
-      console.log('User object:', user);
-      console.log('User name to send:', userName);
 
       // Отправляем данные как JSON
       const response = await fetch(url, {

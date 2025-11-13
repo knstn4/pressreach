@@ -909,11 +909,6 @@ async def create_media_outlet(
     Создать новое СМИ
     """
     try:
-        # Логируем все поля токена для отладки
-        logger.info(f"JWT token fields: {list(user_data.keys())}")
-        logger.info(f"Available user fields: firstName={user_data.get('firstName')}, first_name={user_data.get('first_name')}, name={user_data.get('name')}, email={user_data.get('email')}")
-        logger.info(f"X-User-Name header: {x_user_name}")
-
         # Получаем пользователя
         clerk_user_id = user_data.get("sub")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
