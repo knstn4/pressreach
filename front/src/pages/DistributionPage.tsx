@@ -37,15 +37,6 @@ interface MediaOutlet {
   categories: Array<{ id: number; name: string; slug: string }>;
 }
 
-interface PriceBreakdown {
-  id: number;
-  name: string;
-  base_price: number;
-  priority_multiplier: number;
-  is_premium: boolean;
-  calculated_price: number;
-}
-
 interface UploadedFile {
   id: number;
   file_name: string;
@@ -62,9 +53,6 @@ export default function DistributionPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedMedia, setSelectedMedia] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
-  const [calculating, setCalculating] = useState(false);
-  const [totalPrice, setTotalPrice] = useState(0);
-  const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdown[]>([]);
   const [analyzingText, setAnalyzingText] = useState(false);
   const [_analysisResult, setAnalysisResult] = useState<any>(null);
 
@@ -145,36 +133,6 @@ export default function DistributionPage() {
 
     fetchMedia();
   }, [selectedCategory]);
-
-  // Расчёт цены при изменении выбора
-  useEffect(() => {
-    if (selectedMedia.length === 0) {
-      setTotalPrice(0);
-      setPriceBreakdown([]);
-      return;
-    }
-
-    const calculatePrice = async () => {
-      setCalculating(true);
-      try {
-        const response = await fetch(`${API_URL}/api/calculate-price`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ media_ids: selectedMedia })
-        });
-
-        const data = await response.json();
-        setTotalPrice(data.total_price);
-        setPriceBreakdown(data.breakdown);
-      } catch (error) {
-        console.error('Ошибка расчёта цены:', error);
-      } finally {
-        setCalculating(false);
-      }
-    };
-
-    calculatePrice();
-  }, [selectedMedia]);
 
   const toggleMediaSelection = (mediaId: number) => {
     setSelectedMedia(prev =>
@@ -510,14 +468,6 @@ export default function DistributionPage() {
     } finally {
       setSending(false);
     }
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
-      minimumFractionDigits: 0
-    }).format(price);
   };
 
   const getMediaTypeIcon = (type: string) => {
@@ -886,66 +836,41 @@ export default function DistributionPage() {
           <div className="space-y-6">
             <Card className="sticky top-4">
               <CardHeader>
-                <CardTitle>Итого</CardTitle>
-                <CardDescription>Стоимость рассылки</CardDescription>
+                <CardTitle>Создать рассылку</CardTitle>
+                <CardDescription>Выбрано {selectedMedia.length} СМИ</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {calculating ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg">
-                      <p className="text-sm opacity-90 mb-1">Общая стоимость</p>
-                      <p className="text-4xl font-bold">{formatPrice(totalPrice)}</p>
-                      <p className="text-sm opacity-75 mt-2">
-                        {selectedMedia.length} {selectedMedia.length === 1 ? 'СМИ' : 'СМИ'}
-                      </p>
-                    </div>
+                <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg">
+                  <p className="text-sm opacity-90 mb-1">Готово к отправке</p>
+                  <p className="text-4xl font-bold">{selectedMedia.length}</p>
+                  <p className="text-sm opacity-75 mt-2">
+                    {selectedMedia.length === 1 ? 'СМИ' : 'СМИ'}
+                  </p>
+                </div>
 
-                    {priceBreakdown.length > 0 && (
-                      <div>
-                        <h4 className="font-semibold text-sm text-gray-700 mb-2">Детализация:</h4>
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                          {priceBreakdown.map(item => (
-                            <div key={item.id} className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600 flex items-center gap-1">
-                                {item.name}
-                                {item.is_premium && <span className="text-yellow-500">⭐</span>}
-                              </span>
-                              <span className="font-semibold">{formatPrice(item.calculated_price)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                <Button
+                  onClick={handleCreateDistribution}
+                  disabled={loading || selectedMedia.length === 0 || !pressReleaseTitle || !pressReleaseContent || !companyName}
+                  className="w-full"
+                  size="lg"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Создание...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Создать рассылку
+                    </>
+                  )}
+                </Button>
 
-                    <Button
-                      onClick={handleCreateDistribution}
-                      disabled={loading || selectedMedia.length === 0 || !pressReleaseTitle || !pressReleaseContent || !companyName}
-                      className="w-full"
-                      size="lg"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Создание...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-2" />
-                          Создать рассылку
-                        </>
-                      )}
-                    </Button>
-
-                    {selectedMedia.length === 0 && (
-                      <p className="text-sm text-center text-gray-500">
-                        Выберите хотя бы одно СМИ
-                      </p>
-                    )}
-                  </>
+                {selectedMedia.length === 0 && (
+                  <p className="text-sm text-center text-gray-500">
+                    Выберите хотя бы одно СМИ
+                  </p>
                 )}
               </CardContent>
             </Card>

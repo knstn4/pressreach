@@ -881,8 +881,14 @@ async def create_media_outlet(
         clerk_user_id = user_data.get("sub")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
 
-        # Имя пользователя из токена
-        user_name = user_data.get("name") or user_data.get("email") or "Неизвестный"
+        # Имя пользователя из токена Clerk (приоритет: firstName, name, email)
+        user_name = (
+            user_data.get("firstName") or 
+            user_data.get("first_name") or 
+            user_data.get("name") or 
+            user_data.get("email", "").split("@")[0] or 
+            "Неизвестный"
+        )
 
         # Создаём медиа
         media = MediaOutlet(
