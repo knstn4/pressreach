@@ -606,20 +606,22 @@ async def get_media(
             "media_type": media.media_type.value,
             "website": media.website,
             "description": media.description,
-            # Контакты скрыты - пользователи должны использовать нашу рассылку
-            # "email": media.email,
-            # "telegram_username": media.telegram_username,
-            # "phone": media.phone,
-            # "whatsapp": media.whatsapp,
+            # Контакты теперь открыты для всех (для бета-теста)
+            "email": media.email,
+            "telegram_username": media.telegram_username,
+            "phone": media.phone,
+            "whatsapp": media.whatsapp,
             "audience_size": media.audience_size,
             "monthly_reach": media.monthly_reach,
-            # Цены тоже скрываем для конкурентоспособности
-            # "base_price": media.base_price,
-            # "priority_multiplier": media.priority_multiplier,
+            "base_price": media.base_price,
+            "priority_multiplier": media.priority_multiplier,
             "is_active": media.is_active,
             "is_premium": media.is_premium,
             "rating": media.rating,
-            "categories": [{"id": cat.id, "name": cat.name, "slug": cat.slug} for cat in media.categories]
+            "categories": [{"id": cat.id, "name": cat.name, "slug": cat.slug} for cat in media.categories],
+            # Информация об авторе
+            "added_by_name": media.added_by_name,
+            "added_at": media.added_at.isoformat() if media.added_at else None
         } for media in media_outlets]
     except Exception as e:
         logger.error(f"Ошибка получения медиа: {str(e)}")
@@ -865,12 +867,20 @@ async def get_distribution(
 @app.post("/api/media")
 async def create_media_outlet(
     request: CreateMediaOutletRequest = Body(...),
+    user_data: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Создать новое СМИ
     """
     try:
+        # Получаем пользователя
+        clerk_user_id = user_data.get("sub")
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+        
+        # Имя пользователя из токена
+        user_name = user_data.get("name") or user_data.get("email") or "Неизвестный"
+        
         # Создаём медиа
         media = MediaOutlet(
             name=request.name,
@@ -887,7 +897,9 @@ async def create_media_outlet(
             priority_multiplier=request.priority_multiplier,
             is_active=request.is_active,
             is_premium=request.is_premium,
-            rating=request.rating
+            rating=request.rating,
+            added_by_user_id=user.id if user else None,
+            added_by_name=user_name
         )
 
         # Добавляем категории
@@ -914,6 +926,7 @@ async def create_media_outlet(
 async def update_media_outlet(
     media_id: int,
     request: UpdateMediaOutletRequest = Body(...),
+    user_data: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -1000,10 +1013,10 @@ async def get_distributions(
         # Получаем пользователя
         clerk_user_id = user_data.get("sub")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
-        
+
         if not user:
             raise HTTPException(status_code=404, detail="Пользователь не найден")
-        
+
         query = db.query(Distribution).filter(Distribution.user_id == user.id).order_by(Distribution.created_at.desc())
 
         if status:

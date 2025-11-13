@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,8 +33,15 @@ import {
   Filter,
   X,
   CheckCircle2,
+  Plus,
+  Edit,
+  Mail,
+  Phone,
+  Send,
+  User,
 } from 'lucide-react';
 import { API_URL } from '@/config';
+import { useAuth } from '@clerk/clerk-react';
 
 interface Category {
   id: number;
@@ -61,6 +67,8 @@ interface MediaOutlet {
   is_premium: boolean;
   rating: number;
   categories: Category[];
+  added_by_name?: string;
+  added_at?: string;
 }
 
 interface MediaFormData {
@@ -83,6 +91,7 @@ interface MediaFormData {
 }
 
 export default function MediaManagementPage() {
+  const { getToken } = useAuth();
   const [mediaOutlets, setMediaOutlets] = useState<MediaOutlet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredMedia, setFilteredMedia] = useState<MediaOutlet[]>([]);
@@ -214,9 +223,7 @@ export default function MediaManagementPage() {
     }
   };
 
-  // Скрыто для пользователей, будет использоваться позже
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _handleAdd = () => {
+  const handleAdd = () => {
     setEditingMedia(null);
     setFormData({
       name: '',
@@ -239,8 +246,7 @@ export default function MediaManagementPage() {
     setIsDialogOpen(true);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _handleEdit = (media: MediaOutlet) => {
+  const handleEdit = (media: MediaOutlet) => {
     setEditingMedia(media);
     setFormData({
       name: media.name,
@@ -271,6 +277,7 @@ export default function MediaManagementPage() {
 
     setSaving(true);
     try {
+      const token = await getToken();
       const url = editingMedia
         ? `${API_URL}/api/media/${editingMedia.id}`
         : `${API_URL}/api/media`;
@@ -296,6 +303,7 @@ export default function MediaManagementPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(cleanedData),
       });
@@ -327,28 +335,6 @@ export default function MediaManagementPage() {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _handleDelete = async (id: number) => {
-    if (!confirm('Вы уверены, что хотите удалить это СМИ?')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/media/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Ошибка удаления');
-      }
-
-      await fetchMediaOutlets();
-    } catch (error) {
-      console.error('Ошибка удаления:', error);
-      alert('Ошибка при удалении СМИ');
-    }
-  };
-
   const toggleCategorySelection = (categoryId: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -376,13 +362,9 @@ export default function MediaManagementPage() {
     return num.toString();
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _formatPrice = (price: number) => {
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
-      minimumFractionDigits: 0,
-    }).format(price);
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   const activeFiltersCount =
@@ -472,11 +454,10 @@ export default function MediaManagementPage() {
                     className="pl-10"
                   />
                 </div>
-                {/* Кнопка добавления скрыта - только для админов */}
-                {/* <Button onClick={handleAdd} className="bg-green-600 hover:bg-green-700">
+                <Button onClick={handleAdd} className="bg-green-600 hover:bg-green-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Добавить СМИ
-                </Button> */}
+                </Button>
               </div>
 
               {/* Фильтры */}
@@ -554,15 +535,11 @@ export default function MediaManagementPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[300px]">Название</TableHead>
-                      {/* Контакты скрыты - приватная информация */}
-                      {/* <TableHead>Контакты</TableHead> */}
+                      <TableHead>Контакты</TableHead>
                       <TableHead>Аудитория</TableHead>
-                      {/* Цена скрыта для конкурентоспособности */}
-                      {/* <TableHead>Цена</TableHead> */}
                       <TableHead>Рейтинг</TableHead>
                       <TableHead>Статус</TableHead>
-                      {/* Действия скрыты - редактирование только для админов */}
-                      {/* <TableHead className="text-right">Действия</TableHead> */}
+                      <TableHead className="text-right">Действия</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -595,16 +572,22 @@ export default function MediaManagementPage() {
                                 </Badge>
                               ))}
                             </div>
+                            {media.added_by_name && (
+                              <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                Добавил: {media.added_by_name}
+                                {media.added_at && ` • ${formatDate(media.added_at)}`}
+                              </div>
+                            )}
                           </div>
                         </TableCell>
 
-                        {/* Контакты скрыты */}
-                        {/* <TableCell>
+                        <TableCell>
                           <div className="space-y-1 text-sm">
                             {media.email && (
                               <div className="flex items-center gap-1 text-gray-600">
                                 <Mail className="w-3 h-3" />
-                                {media.email}
+                                <span className="truncate max-w-[200px]">{media.email}</span>
                               </div>
                             )}
                             {media.phone && (
@@ -615,12 +598,12 @@ export default function MediaManagementPage() {
                             )}
                             {media.telegram_username && (
                               <div className="flex items-center gap-1 text-gray-600">
-                                <span className="text-xs">TG:</span>
+                                <Send className="w-3 h-3" />
                                 {media.telegram_username}
                               </div>
                             )}
                           </div>
-                        </TableCell> */}
+                        </TableCell>
 
                         <TableCell>
                           <div className="space-y-1 text-sm">
@@ -658,26 +641,15 @@ export default function MediaManagementPage() {
                           )}
                         </TableCell>
 
-                        {/* Действия скрыты - редактирование только для админов */}
-                        {/* <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(media)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(media.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell> */}
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(media)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

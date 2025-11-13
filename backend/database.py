@@ -191,9 +191,14 @@ class MediaOutlet(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Отслеживание авторства
+    added_by_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    added_by_name = Column(String(255), nullable=True)
+    added_at = Column(DateTime, default=datetime.utcnow)
+
     # Связи
     categories = relationship('Category', secondary=media_categories, back_populates='media_outlets')
-    distributions = relationship('Distribution', secondary=distribution_media, back_populates='media_outlets')
+    distributions = relationship('Distribution', secondary=distribution_media, back_populates='distributions')
 
     def __repr__(self):
         return f"<MediaOutlet {self.name}>"
