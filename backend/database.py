@@ -198,7 +198,7 @@ class MediaOutlet(Base):
 
     # Связи
     categories = relationship('Category', secondary=media_categories, back_populates='media_outlets')
-    distributions = relationship('Distribution', secondary=distribution_media, back_populates='distributions')
+    distributions = relationship('Distribution', secondary=distribution_media, back_populates='media_outlets')
 
     def __repr__(self):
         return f"<MediaOutlet {self.name}>"
