@@ -622,9 +622,9 @@ async def get_media(
             "is_premium": media.is_premium,
             "rating": media.rating,
             "categories": [{"id": cat.id, "name": cat.name, "slug": cat.slug} for cat in media.categories],
-            # Информация об авторе
-            "added_by_name": media.added_by_name,
-            "added_at": media.added_at.isoformat() if media.added_at else None
+            # Информация об авторе (безопасный доступ для совместимости со старыми записями)
+            "added_by_name": getattr(media, 'added_by_name', None),
+            "added_at": media.added_at.isoformat() if hasattr(media, 'added_at') and media.added_at else None
         } for media in media_outlets]
     except Exception as e:
         logger.error(f"Ошибка получения медиа: {str(e)}")
@@ -880,10 +880,10 @@ async def create_media_outlet(
         # Получаем пользователя
         clerk_user_id = user_data.get("sub")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
-        
+
         # Имя пользователя из токена
         user_name = user_data.get("name") or user_data.get("email") or "Неизвестный"
-        
+
         # Создаём медиа
         media = MediaOutlet(
             name=request.name,
