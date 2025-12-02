@@ -274,6 +274,9 @@ export default function MediaManagementPage() {
 
       // Получаем имя пользователя
       const userName = user?.firstName || user?.fullName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
+      
+      // Кодируем имя пользователя в base64 для передачи в заголовке (HTTP headers могут содержать только ASCII)
+      const encodedUserName = btoa(encodeURIComponent(userName));
 
       // Отправляем данные как JSON
       const response = await fetch(url, {
@@ -281,7 +284,7 @@ export default function MediaManagementPage() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'X-User-Name': userName, // Передаём имя в заголовке
+          'X-User-Name': encodedUserName, // Передаём закодированное имя в заголовке
         },
         body: JSON.stringify(cleanedData),
       });

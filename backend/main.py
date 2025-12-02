@@ -912,8 +912,19 @@ async def create_media_outlet(
         clerk_user_id = user_data.get("sub")
         user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
 
-        # Имя пользователя - приоритет заголовку X-User-Name
-        user_name = x_user_name or (user.first_name if user and user.first_name else "Пользователь")
+        # Декодируем имя пользователя из base64
+        user_name = "Пользователь"
+        if x_user_name:
+            try:
+                import base64
+                import urllib.parse
+                decoded = base64.b64decode(x_user_name).decode('utf-8')
+                user_name = urllib.parse.unquote(decoded)
+            except Exception as e:
+                logger.warning(f"Не удалось декодировать X-User-Name: {e}")
+                user_name = x_user_name  # Fallback на оригинальное значение
+        elif user and user.first_name:
+            user_name = user.first_name
 
         # Создаём медиа
         media = MediaOutlet(
