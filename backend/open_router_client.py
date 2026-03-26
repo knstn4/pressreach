@@ -14,7 +14,7 @@ class OpenRouterClient:
         self.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
         self.base_url = "https://openrouter.ai/api/v1"
         self.client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key, timeout=20)
-        self.default_model = "deepseek/deepseek-chat-v3.1"
+        self.default_model = "google/gemini-flash-3-preview"
         self.headers = {
             "HTTP-Referer": "https://obuchai.com",  # Optional: Your site URL
             "X-Title": "Obuchai.com"  # Optional: Your site title
@@ -36,7 +36,8 @@ class OpenRouterClient:
             Exception: If the model fails.
         """
         model_mapping = {
-            "deepseek": "deepseek/deepseek-chat-v3.1",
+            "deepseek": "google/gemini-flash-3-preview",
+            "gemini": "google/gemini-flash-3-preview",
             "gpt5": "anthropic/claude-sonnet-4",
             "claude4": "anthropic/claude-sonnet-4"
         }
@@ -94,7 +95,8 @@ class OpenRouterClient:
         Улучшает текст (проверка грамматики или переписывание)
         """
         model_mapping = {
-            "deepseek": "deepseek/deepseek-chat",
+            "deepseek": "google/gemini-flash-3-preview",
+            "gemini": "google/gemini-flash-3-preview",
             "gpt4": "openai/gpt-4-turbo-preview",
             "gpt35": "openai/gpt-3.5-turbo",
             "claude": "anthropic/claude-2",
