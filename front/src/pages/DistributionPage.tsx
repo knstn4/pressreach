@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, Send, CheckCircle2, Upload, X, FileText, Image, FileArchive, File as FileIcon, Mail } from 'lucide-react';
+import { Loader2, Send, CheckCircle2, Upload, X, FileText, Image, FileArchive, File as FileIcon, Mail, Clock, Sparkles, MessageSquare } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -74,8 +74,9 @@ export default function DistributionPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [_loadingPreview, setLoadingPreview] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sendResult, setSendResult] = useState<any>(null);
+  const [sending] = useState(false);
+  const [sendResult] = useState<any>(null);
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   // Устанавливаем заголовок страницы
   useEffect(() => {
@@ -441,35 +442,6 @@ export default function DistributionPage() {
     }
   };
 
-  const handleSendDistribution = async () => {
-    if (!distributionId) return;
-
-    setSending(true);
-    try {
-      const token = await getToken();
-      const response = await fetch(`${API_URL}/api/distributions/${distributionId}/send`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Ошибка отправки рассылки');
-      }
-
-      const data = await response.json();
-      setSendResult(data);
-      setShowPreview(false);
-
-    } catch (error) {
-      console.error('Ошибка отправки:', error);
-      alert('Ошибка отправки рассылки');
-    } finally {
-      setSending(false);
-    }
-  };
-
   const getMediaTypeIcon = (type: string) => {
     const types: Record<string, string> = {
       online: '🌐',
@@ -526,7 +498,6 @@ export default function DistributionPage() {
               onClick={() => {
                 setDistributionCreated(false);
                 setDistributionId(null);
-                setSendResult(null);
                 setPressReleaseTitle('');
                 setPressReleaseContent('');
                 setSelectedMedia([]);
@@ -955,21 +926,51 @@ export default function DistributionPage() {
               Отмена
             </Button>
             <Button
-              onClick={handleSendDistribution}
+              onClick={() => { setShowPreview(false); setShowComingSoon(true); }}
               disabled={sending}
               className="bg-green-600 hover:bg-green-700"
             >
-              {sending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Отправка...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Подтвердить и отправить
-                </>
-              )}
+              <Send className="w-4 h-4 mr-2" />
+              Подтвердить и отправить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Модалка «Рассылка в разработке» */}
+      <Dialog open={showComingSoon} onOpenChange={setShowComingSoon}>
+        <DialogContent className="max-w-md text-center">
+          <DialogHeader className="items-center">
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-2">
+              <Clock className="w-8 h-8 text-amber-500" />
+            </div>
+            <DialogTitle className="text-xl">Рассылка скоро будет доступна</DialogTitle>
+            <DialogDescription className="text-base mt-2">
+              Функция email-рассылки сейчас находится в финальной стадии разработки.
+              Мы хотим сделать её по-настоящему крутой — надёжной, персонализированной
+              и с детальной аналитикой доставки.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 my-4 text-left">
+            <p className="text-sm font-medium text-gray-700 text-center">Пока думайте, что вам нужно:</p>
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              <Sparkles className="w-4 h-4 text-purple-500 mt-0.5 shrink-0" />
+              <span className="text-sm text-gray-600">Какой стиль письма подойдёт вашей аудитории?</span>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              <MessageSquare className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+              <span className="text-sm text-gray-600">Нужен ли персональный заголовок для каждого СМИ?</span>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              <Send className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+              <span className="text-sm text-gray-600">Хотите получать уведомления об открытиях и ответах?</span>
+            </div>
+          </div>
+
+          <DialogFooter className="justify-center">
+            <Button onClick={() => setShowComingSoon(false)} className="w-full">
+              Понятно, буду ждать
             </Button>
           </DialogFooter>
         </DialogContent>
