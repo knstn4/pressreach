@@ -274,7 +274,7 @@ export default function MediaManagementPage() {
 
       // Получаем имя пользователя
       const userName = user?.firstName || user?.fullName || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
-      
+
       // Кодируем имя пользователя в base64 для передачи в заголовке (HTTP headers могут содержать только ASCII)
       const encodedUserName = btoa(encodeURIComponent(userName));
 

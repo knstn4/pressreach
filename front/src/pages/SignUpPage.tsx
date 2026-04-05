@@ -18,7 +18,12 @@ export default function SignUpPage() {
           appearance={{
             elements: {
               rootBox: 'mx-auto',
-              card: 'shadow-xl',
+              card: 'shadow-xl rounded-2xl',
+              headerTitle: 'hidden',
+              headerSubtitle: 'hidden',
+              socialButtonsBlockButton: 'rounded-xl border border-gray-200 dark:border-gray-700',
+              formButtonPrimary: 'rounded-xl bg-primary hover:bg-primary/90',
+              footerActionLink: 'text-primary hover:text-primary/80',
             },
           }}
         />
